@@ -268,6 +268,18 @@ class Checkpoint(models.Model):
         return self.risk_level is None
 
 
+class TripHeatmap(models.Model):
+    """The corridor weather heatmap for a trip (B11), built on first request and then reused as is."""
+
+    trip = models.OneToOneField(Trip, on_delete=models.CASCADE, related_name="heatmap")
+    start_time = models.DateTimeField(help_text="Hour 0: the hour the heatmap was built in (UTC).")
+    built_at = models.DateTimeField(auto_now_add=True)
+    data = models.JSONField(help_text="The compact heatmap payload the API sends (see heatmap.py).")
+
+    def __str__(self) -> str:
+        return f"Heatmap for trip {self.trip_id} from {self.start_time:%Y-%m-%d %H:00}"
+
+
 class ForecastCache(models.Model):
     """Hourly forecast for a grid cell, cached so repeated trips and the heatmap don't refetch it.
 

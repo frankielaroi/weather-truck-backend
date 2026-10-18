@@ -257,6 +257,12 @@ def test_provider_down_and_old_cache_is_unknown() -> None:
     assert result.risk.data_issues == (UNAVAILABLE_NOTE,)
 
 
+def test_an_unexpected_error_in_a_batch_leaves_its_checkpoints_unknown() -> None:
+    with mock.patch("requests.get", side_effect=OSError("socket closed")):
+        [result] = checkpoint_weather([checkpoint(40.0, -100.0, START + timedelta(hours=5))], 1)
+    assert result.risk.data_issues == (UNAVAILABLE_NOTE,)
+
+
 @pytest.mark.parametrize(
     "res",
     [

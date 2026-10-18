@@ -87,6 +87,33 @@ Weather is checked at mile 0, every 10 / 25 / 50 miles (the driver's choice) and
 - Each step's time is logged, e.g. `routing 3314 ms, checkpoints 34 ms, weather 1429 ms, save 217 ms`.
 - Measured on Chicago → Denver at 25 mi: **5.0 s** on a cold cache, **0.28 s** warm; loading a saved trip takes 3 queries.
 
+## Corridor heatmap
+
+`apps.routing.heatmap.get_or_build_heatmap(trip)` covers the corridor around all of a trip's routes and scores it for every hour from 0 to 48. It's built on the first request and saved (`TripHeatmap`), so it's computed once.
+
+- **Corridor:** every point within ~25 miles (40 km) of any route, covered with a square grid. The spacing is chosen so the heatmap stays under ~400 points (Chicago → Denver: 393 points, ~20-mile spacing). Every checkpoint's own forecast cell is included too, so **a point on a route at a checkpoint's arrival hour has exactly that checkpoint's level**.
+- **Forecasts** come through the same 1-hour cache as the trip's checkpoints. Every point and hour is scored with the risk engine and the trip's load weight.
+- **Decision — hour 0** is the hour the heatmap is built in (UTC), not the departure hour. `hours` gives each slot's clock time, and `departure_hour` marks the departure.
+- **Truck position:** for each hour, on the recommended route. It's interpolated between checkpoints by time and placed along the road by distance; it sits at the origin before departure and at the destination after arrival.
+- **Size:** Chicago → Denver is ~244 KB raw, **~13 KB gzipped**. A first build takes ~4 s (mostly weather); reading it back takes ~0.04 s with no provider calls.
+
+Payload (compact: positions once, then one 49-value list per point per measure):
+
+| Field | Type | Unit / values |
+| --- | --- | --- |
+| `version`, `trip_id` | int | |
+| `start_time` | string | UTC time of hour 0 |
+| `hours` | string[49] | UTC time of each hour slot |
+| `departure_hour` | int \| null | Slot of the departure (null if outside 0–48) |
+| `load_weight_lb` | int | pounds |
+| `corridor_miles`, `spacing_miles` | number | miles |
+| `points` | `[lng, lat][]` | degrees |
+| `levels` | `(int \| null)[49][]` | Risk level 0–4 per point per hour; null = Unknown |
+| `wind_mph` | `(int \| null)[49][]` | mph |
+| `rain_in_per_hr`, `snow_in_per_hr` | `(number \| null)[49][]` | inches per hour (0.01) |
+| `truck.route_index` | int | Which route the truck is on (the recommended one) |
+| `truck.positions` | `[lng, lat][49]` | Truck position at each hour |
+
 ## API
 
 Every error uses one shape: `{"error": {"code": "...", "message": "...", "fields": {...}}}`. `fields` appears only on 400s and maps each bad input to its messages; nested inputs use dotted names (`"origin.lat"`). No login is needed.

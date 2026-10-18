@@ -104,3 +104,9 @@ class NoRoute(APIException):
     status_code: int = status.HTTP_422_UNPROCESSABLE_ENTITY
     default_code = "no_route"
     default_detail = "No route found between these places."
+
+
+class TripHasNoRoutes(APIException):
+    status_code: int = status.HTTP_409_CONFLICT
+    default_code = "trip_has_no_routes"
+    default_detail = "Trip has no routes."
