@@ -43,6 +43,21 @@ def test_field_errors_are_listed_per_field() -> None:
     }
 
 
+def test_nested_field_errors_use_dotted_names() -> None:
+    detail: Any = {"origin": {"lat": ["Too far north."], "name": ["Required."]}, "stops": [{"lng": ["Bad."]}, {}]}
+    _, body = handle(exceptions.ValidationError(detail))
+    assert body["error"]["fields"] == {
+        "origin.lat": ["Too far north."],
+        "origin.name": ["Required."],
+        "stops.0.lng": ["Bad."],
+    }
+
+
+def test_mixed_lists_keep_plain_messages_under_the_field() -> None:
+    _, body = handle(exceptions.ValidationError({"stops": ["Too many.", {"lat": ["Bad."]}]}))
+    assert body["error"]["fields"] == {"stops": ["Too many."], "stops.1.lat": ["Bad."]}
+
+
 @pytest.mark.parametrize("detail", [["Origin and destination must differ."], "Origin and destination must differ."])
 def test_non_field_errors_are_grouped(detail: Any) -> None:
     _, body = handle(exceptions.ValidationError(detail))

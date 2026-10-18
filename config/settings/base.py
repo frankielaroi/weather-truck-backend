@@ -121,6 +121,10 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
     "UNAUTHENTICATED_USER": None,
     "EXCEPTION_HANDLER": "apps.routing.errors.api_exception_handler",
+    # Trip creation calls outside providers, so it's rate-limited per visitor (B10).
+    "DEFAULT_THROTTLE_RATES": {"trip_create": env("TRIP_CREATE_RATE", default="20/min")},
+    # Proxies in front of the app (e.g. 1 on Render), so throttling sees the real client address.
+    "NUM_PROXIES": env.int("NUM_PROXIES", default=None),
 }
 
 
