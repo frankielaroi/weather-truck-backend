@@ -83,3 +83,9 @@ def _field_messages(detail: object) -> dict[str, list[str]]:
 
 def _as_list(value: object) -> list[object]:
     return list(value) if isinstance(value, list | tuple) else [value]
+
+
+class NoRoute(APIException):
+    status_code: int = status.HTTP_422_UNPROCESSABLE_ENTITY
+    default_code = "no_route"
+    default_detail = "No route found between these places."
