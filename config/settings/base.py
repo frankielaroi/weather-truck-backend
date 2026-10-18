@@ -42,6 +42,8 @@ AUTH_USER_MODEL = "users.User"
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Before host validation, so a host probing the container by IP still gets the health check.
+    "apps.routing.middleware.HealthCheckMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     # Compresses large JSON (the trip, the heatmap). Safe here: API responses carry no secrets or CSRF tokens.
@@ -139,6 +141,23 @@ CACHES = {
         "LOCATION": "django_cache",
         "TIMEOUT": 60 * 60 * 24,
     }
+}
+
+
+# Logging — to stdout, so the host's log viewer shows it. INFO from our own code includes the
+# coordinator's per-step timings; third-party libraries stay at WARNING.
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {"plain": {"format": "%(asctime)s %(levelname)s %(name)s: %(message)s"}},
+    "handlers": {"console": {"class": "logging.StreamHandler", "formatter": "plain"}},
+    "root": {"handlers": ["console"], "level": "WARNING"},
+    "loggers": {
+        "apps": {"handlers": ["console"], "level": env("LOG_LEVEL", default="INFO"), "propagate": False},
+        # Bots probe with random Host headers; Django already answers 400, no need for a traceback each time.
+        "django.security.DisallowedHost": {"handlers": [], "propagate": False},
+    },
 }
 
 

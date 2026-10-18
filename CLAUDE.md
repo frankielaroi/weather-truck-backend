@@ -68,4 +68,5 @@ Django API that plans truck routes, samples weather along each route at the truc
 ### Security Hardening
 - Never commit secrets. All config comes from env vars via `django-environ` (`SECRET_KEY`, `DATABASE_URL`, API keys).
 - `AUTH_USER_MODEL` is set to `users.User` — keep it.
+- Production settings (`config/settings/production.py`) have no defaults for secrets, hosts or CORS and raise `ImproperlyConfigured` if they're missing or placeholders. Hosting is AWS Lightsail (eu-north-1): `Dockerfile` + `docker-entrypoint.sh` (migrate + createcachetable on every start) and `deploy/lightsail/deploy.sh`; see the README. Tests: `tests/test_production_settings.py`.
 - Check production readiness: `DJANGO_SETTINGS_MODULE=config.settings.production uv run python manage.py check --deploy`

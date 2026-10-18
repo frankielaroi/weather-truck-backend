@@ -253,6 +253,65 @@ The body for a trip (`GET` / `POST` trip endpoints, B10). A full real example is
 | `risk.reasons` | string[] | Every factor at Moderate or above, e.g. "Wind 47 mph with 32,000 lb load → No Travel" |
 | `risk.notes` | string[] | Data problems, e.g. "Beyond forecast range" |
 
+## Hosted API (AWS Lightsail)
+
+Live at **https://weather-truck-api.ncryy34pm596t.eu-north-1.cs.amazonlightsail.com** (health check: `/api/health/`). It runs as a container on **AWS Lightsail** in **eu-north-1 (Stockholm)**, with a private **Lightsail Postgres** database, so saved trips survive redeploys. Lightsail gives the service a free HTTPS address; HTTP redirects to HTTPS.
+
+| Resource | Name | Size (check current pricing) |
+| --- | --- | --- |
+| Container service | `weather-truck-api` | `nano` ×1 (~$7/month) |
+| Postgres database | `weather-truck-db` | `micro_2_0`, private (~$15/month) |
+
+**What runs:** the [`Dockerfile`](Dockerfile) builds the image (Python 3.13, `gunicorn`, static files collected for `whitenoise`). On every start [`docker-entrypoint.sh`](docker-entrypoint.sh) runs `migrate` and `createcachetable`, then starts the server, so **migrations run on every deploy** and a failing one stops the new container instead of serving traffic.
+
+### Deploy or redeploy
+
+Needs Docker running, the AWS CLI signed in, and the Lightsail plugin ([`lightsailctl`](https://docs.aws.amazon.com/lightsail/latest/userguide/amazon-lightsail-install-software.html)) on your `PATH`.
+
+```bash
+export ORS_API_KEY=...                                    # https://account.heigit.org/manage/key
+export CORS_ALLOWED_ORIGINS=https://your-frontend.example # the frontend's https origin; only it may call the API from a browser
+bash deploy/lightsail/deploy.sh
+```
+
+[`deploy.sh`](deploy/lightsail/deploy.sh) builds and pushes the image, reads the database details from Lightsail, and creates a new deployment with the environment below. Secrets come from your shell and AWS, never from the repo. Lightsail waits for `/api/health/` to pass before switching traffic.
+
+| Variable | Set by |
+| --- | --- |
+| `DJANGO_SETTINGS_MODULE` = `config.settings.production` | deploy script |
+| `DJANGO_SECRET_KEY` | generated on the first deploy, then kept from the running deployment |
+| `DATABASE_URL` | built from the Lightsail database |
+| `DJANGO_ALLOWED_HOSTS` | the service's own hostname |
+| `CORS_ALLOWED_ORIGINS`, `ORS_API_KEY` | your shell |
+| `NUM_PROXIES` = `1` | deploy script (the load balancer sits in front, so rate limits see real client addresses) |
+
+Changing the frontend's address later is just a redeploy with a new `CORS_ALLOWED_ORIGINS`.
+
+### One-time setup (already done)
+
+```bash
+aws lightsail create-relational-database --region eu-north-1 --relational-database-name weather-truck-db   --availability-zone eu-north-1a --relational-database-blueprint-id postgres_18   --relational-database-bundle-id micro_2_0 --master-database-name weather_truck   --master-username weather_truck --no-publicly-accessible
+aws lightsail create-container-service --region eu-north-1 --service-name weather-truck-api --power nano --scale 1
+aws lightsail peer-vpc --region eu-north-1      # lets the container reach the private database
+```
+
+### Tear down (stops the charges)
+
+```bash
+aws lightsail delete-container-service --region eu-north-1 --service-name weather-truck-api
+aws lightsail delete-relational-database --region eu-north-1 --relational-database-name weather-truck-db --skip-final-snapshot
+```
+
+(Without `--skip-final-snapshot` the database is snapshotted first, which keeps the trips.) Logs: `aws lightsail get-container-log --region eu-north-1 --service-name weather-truck-api --container-name api`.
+
+### Production settings
+
+[`config/settings/production.py`](config/settings/production.py) has no defaults for anything security-related. The app refuses to start unless it has a real `DJANGO_SECRET_KEY` (32+ characters, not a placeholder), exact `DJANGO_ALLOWED_HOSTS` (no `*`), `CORS_ALLOWED_ORIGINS` with only `https://` origins, and a `DATABASE_URL`. Debug is always off, HTTP redirects to HTTPS (except the health check), and HSTS and secure cookies are on. Verify with `DJANGO_SETTINGS_MODULE=config.settings.production uv run python manage.py check --deploy` (with those variables set). The health check is answered before host validation, because Lightsail probes the container by its private IP.
+
+Logs go to stdout. INFO lines include each trip's step timings (`routing … ms, weather … ms`); set `LOG_LEVEL` to change that.
+
+**Measured on the hosted API** (from this machine, Chicago → Denver): creating a trip 7.5 s cold (target 10 s); the heatmap 5 s on first build, ~1 s afterwards. Each request also pays ~1 s of connection setup to Stockholm; the nano container is the smallest size, and `--power micro` is the next step up if it feels slow.
+
 ## Quality checks
 
 ```bash
@@ -283,6 +342,7 @@ uv run mypy .            # types
 | `CSRF_TRUSTED_ORIGINS` | Production only: trusted origins for admin/CSRF |
 | `ORS_API_KEY` | OpenRouteService key (geocoding + 2nd/3rd routing options), from the [HeiGIT dashboard](https://account.heigit.org/manage/key) |
 | `ORS_BASE_URL` | OpenRouteService base address (default `https://api.heigit.org`) |
+| `LOG_LEVEL` | Log level for the app's own logs (default `INFO`) |
 | `TRIP_CREATE_RATE` | Trip creations allowed per visitor (default `20/min`) |
 | `NUM_PROXIES` | Proxies in front of the app in production (e.g. `1`), so rate limits see the real client address |
 | `VALHALLA_URL` | First-choice routing server (default `https://valhalla1.openstreetmap.de`) |
