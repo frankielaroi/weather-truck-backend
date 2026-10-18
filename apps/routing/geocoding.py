@@ -2,6 +2,11 @@
 
 - Queries with fewer than MIN_QUERY_LENGTH non-space characters return [] without calling the provider.
 - Limited to the US (the risk rules use US units). Up to MAX_RESULTS places, each a name + coordinates.
+- Cities and towns only (CITY_LAYERS). Left unfiltered, the top results fill up with duplicates ("Springfield,
+  MO", "City of Springfield, MO", "Springfield Township, MO"), venues and neighbourhoods, which pushes real
+  cities like Springfield, IL out of the list. So we ask for FETCH_SIZE results, drop the "City of" prefix
+  and the duplicates it creates, and keep MAX_RESULTS. If a search finds no city or town at all, it is
+  repeated once over BROAD_LAYERS (neighbourhoods, townships, counties) so small places still show up.
 - Every request has a TIMEOUT_SECONDS timeout. Failures raise ProviderUnavailable (502) or
   ProviderTimeout (504) with a message the driver can read; never a 500.
 - Identical searches (case and spacing ignored) are cached for FRESH_SECONDS. If the provider fails,
@@ -14,6 +19,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import math
+import re
 import time
 from dataclasses import dataclass
 from typing import Any, Final
@@ -26,14 +32,18 @@ from apps.routing.errors import ProviderError, ProviderTimeout, ProviderUnavaila
 
 logger = logging.getLogger(__name__)
 
+_NAME_PREFIX = re.compile(r"^(?:City|Town|Village|Borough|Municipality|Township) of\s+", re.IGNORECASE)
 MIN_QUERY_LENGTH: Final = 3
 MAX_QUERY_LENGTH: Final = 100
-MAX_RESULTS: Final = 5
+MAX_RESULTS: Final = 10
+FETCH_SIZE: Final = 15  # fetched, then cleaned and trimmed to MAX_RESULTS
+CITY_LAYERS: Final = "locality,borough"
+BROAD_LAYERS: Final = "locality,localadmin,neighbourhood,county"
 COUNTRY: Final = "US"
 TIMEOUT_SECONDS: Final = 5
 FRESH_SECONDS: Final = 60 * 60 * 24
 STALE_SECONDS: Final = 60 * 60 * 24 * 7
-_CACHE_VERSION: Final = "v1"
+_CACHE_VERSION: Final = "v2"
 
 UNAVAILABLE_MESSAGE: Final = "Place search isn't responding right now. Try again in a moment."
 TIMEOUT_MESSAGE: Final = "Place search took too long to respond. Try again in a moment."
@@ -85,7 +95,14 @@ def _fetch(text: str) -> list[Place]:
         logger.error("ORS_API_KEY is not set; place search can't run")
         raise ProviderUnavailable(UNAVAILABLE_MESSAGE)
 
-    params: dict[str, str | int] = {"text": text, "boundary.country": COUNTRY, "size": MAX_RESULTS}
+    places = _request(text, CITY_LAYERS)
+    if not places:  # no city or town matched: look wider, so small places and odd spellings still show up
+        places = _request(text, BROAD_LAYERS)
+    return places
+
+
+def _request(text: str, layers: str) -> list[Place]:
+    params: dict[str, str | int] = {"text": text, "boundary.country": COUNTRY, "size": FETCH_SIZE, "layers": layers}
     try:
         response = requests.get(
             f"{settings.ORS_BASE_URL}/pelias/v1/autocomplete",
@@ -117,7 +134,8 @@ def _fetch(text: str) -> list[Place]:
 
 
 def parse_features(data: object) -> list[Place]:
-    """GeoJSON FeatureCollection -> places. Malformed features are skipped, duplicates dropped."""
+    """GeoJSON FeatureCollection -> places. Malformed features are skipped; the "City of" prefix is dropped
+    and duplicates (case-insensitive, after that) are removed, keeping the provider's order."""
     features = data.get("features") if isinstance(data, dict) else None
     if not isinstance(features, list):
         logger.warning("Geocoding response had no feature list")
@@ -136,6 +154,12 @@ def parse_features(data: object) -> list[Place]:
     return places
 
 
+def clean_name(label: str) -> str:
+    """ "City of Ogallala, NE, USA" -> "Ogallala, NE, USA" (the provider labels some cities that way)."""
+    cleaned = _NAME_PREFIX.sub("", label.strip())
+    return cleaned or label.strip()
+
+
 def _parse_feature(feature: object) -> Place | None:
     if not isinstance(feature, dict):
         return None
@@ -150,7 +174,7 @@ def _parse_feature(feature: object) -> Place | None:
     lng, lat = coords[0], coords[1]
     if not _is_coordinate(lat, 90) or not _is_coordinate(lng, 180):
         return None
-    return Place(name=name.strip(), lat=float(lat), lng=float(lng))
+    return Place(name=clean_name(name), lat=float(lat), lng=float(lng))
 
 
 def _is_coordinate(value: object, limit: float) -> bool:

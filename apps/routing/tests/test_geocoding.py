@@ -69,7 +69,8 @@ def test_request_is_us_only_with_timeout_and_key_in_header(provider: mock.Mock) 
     _, kwargs = provider.call_args
     assert provider.call_args.args[0] == "https://geocoder.test/pelias/v1/autocomplete"
     assert kwargs["params"]["boundary.country"] == "US"
-    assert kwargs["params"]["size"] == 5
+    assert kwargs["params"]["size"] == geocoding.FETCH_SIZE == 15
+    assert kwargs["params"]["layers"] == "locality,borough"  # cities and towns, not venues or neighbourhoods
     assert kwargs["timeout"] == geocoding.TIMEOUT_SECONDS
     assert kwargs["headers"]["Authorization"] == "test-key"
     assert "test-key" not in str(kwargs["params"])
@@ -180,10 +181,98 @@ def test_unexpected_response_shapes_give_no_results(data: object) -> None:
     assert parse_features(data) == []
 
 
-def test_results_are_capped_at_five() -> None:
+def test_results_are_capped_at_ten() -> None:
     feature = {"geometry": {"coordinates": [-100.0, 40.0]}}
-    data = {"features": [{**feature, "properties": {"label": f"Place {i}"}} for i in range(9)]}
-    assert len(parse_features(data)) == 5
+    data = {"features": [{**feature, "properties": {"label": f"Place {i}"}} for i in range(15)]}
+    assert len(parse_features(data)) == geocoding.MAX_RESULTS == 10
+
+
+def city(label: str, layer: str = "locality") -> dict[str, Any]:
+    return {"properties": {"label": label, "layer": layer}, "geometry": {"coordinates": [-100.0, 40.0]}}
+
+
+@pytest.mark.parametrize(
+    ("label", "cleaned"),
+    [
+        ("City of Ogallala, NE, USA", "Ogallala, NE, USA"),
+        ("Town of Cheyenne Wells, CO, USA", "Cheyenne Wells, CO, USA"),
+        ("village of Bennet, NE, USA", "Bennet, NE, USA"),
+        ("Denver, CO, USA", "Denver, CO, USA"),
+        ("City of ", "City of"),
+    ],
+)
+def test_the_city_of_prefix_is_dropped(label: str, cleaned: str) -> None:
+    assert geocoding.clean_name(label) == cleaned
+
+
+def test_city_of_duplicates_collapse_so_other_cities_make_the_list() -> None:
+    # Real Pelias output for "Springfield": the same city three times, pushing Springfield, IL out of a top 5.
+    data = {
+        "features": [
+            city("Springfield, MO, USA"),
+            city("City of Springfield, MO, USA"),
+            city("CITY OF SPRINGFIELD, MO, USA"),
+            city("Springfield, MA, USA"),
+            city("City of Springfield, MA, USA"),
+            city("Springfield, IL, USA"),
+            city("Springfield, OR, USA"),
+            city("Springfield, OH, USA"),
+        ]
+    }
+    names = [p.name for p in parse_features(data)]
+    assert names == [
+        "Springfield, MO, USA",
+        "Springfield, MA, USA",
+        "Springfield, IL, USA",
+        "Springfield, OR, USA",
+        "Springfield, OH, USA",
+    ]
+
+
+def test_every_distinct_city_in_a_long_answer_shows_up_to_the_cap() -> None:
+    states = ["MO", "MA", "IL", "OR", "OH", "VA", "PA", "TN", "NJ", "NY", "TX", "FL"]
+    data = {"features": [city(f"Springfield, {st}, USA") for st in states]}
+    assert [p.name for p in parse_features(data)] == [f"Springfield, {st}, USA" for st in states[:10]]
+
+
+def provider_answers(*bodies: Any) -> mock.Mock:
+    return mock.Mock(side_effect=[fake_response(200, body) for body in bodies])
+
+
+def test_a_search_with_no_city_match_is_repeated_over_broader_layers(settings: SettingsWrapper) -> None:
+    broad = {"features": [city("Rural Ogallala, NE, USA", "localadmin")]}
+    fake = provider_answers({"features": []}, broad)
+    with mock.patch("requests.get", fake):
+        places = suggest("Rural Ogallala")
+    assert [p.name for p in places] == ["Rural Ogallala, NE, USA"]
+    first, second = (call.kwargs["params"]["layers"] for call in fake.call_args_list)
+    assert first == geocoding.CITY_LAYERS
+    assert second == geocoding.BROAD_LAYERS
+
+
+def test_the_broader_search_is_skipped_when_cities_matched(provider: mock.Mock) -> None:
+    suggest("Denver")
+    assert provider.call_count == 1
+
+
+def test_a_failing_first_request_is_not_retried_over_other_layers() -> None:
+    with (
+        mock.patch("requests.get", side_effect=requests.Timeout("slow")) as get,
+        pytest.raises(ProviderTimeout),
+    ):
+        suggest("Denver")
+    assert get.call_count == 1
+
+
+def test_no_match_anywhere_gives_an_empty_list() -> None:
+    with mock.patch("requests.get", provider_answers({"features": []}, {"features": []})):
+        assert suggest("Zzzzzz") == []
+
+
+def test_old_cached_searches_from_before_the_city_filter_are_not_reused(provider: mock.Mock) -> None:
+    old_key = geocoding._cache_key("Denver").replace(":v2:", ":v1:")
+    cache.set(old_key, {"fetched_at": geocoding._now(), "places": [{"name": "Stale, XX", "lat": 1.0, "lng": 2.0}]})
+    assert suggest("Denver")[0].name == "Denver, CO, USA"
 
 
 # --- Endpoint ------------------------------------------------------------------

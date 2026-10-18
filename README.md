@@ -120,7 +120,7 @@ Every error uses one shape: `{"error": {"code": "...", "message": "...", "fields
 
 ### `GET /api/places/?q=<text>` — place suggestions
 
-Up to 5 US places matching `q`. Fewer than 3 non-space characters returns an empty list without calling the provider. Identical searches are cached for a day.
+Up to 10 US cities and towns matching `q` (not venues or neighbourhoods; duplicates like "City of Springfield" are merged, so every distinct Springfield shows). If no city or town matches, the search widens to townships, neighbourhoods and counties. Fewer than 3 non-space characters returns an empty list without calling the provider. Identical searches are cached for a day.
 
 ```http
 GET /api/places/?q=Denver
