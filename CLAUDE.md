@@ -41,6 +41,7 @@ Django API that plans truck routes, samples weather along each route at the truc
 - `geocoding.py` - B4 place suggestions from ORS Pelias (`ORS_BASE_URL`, `ORS_API_KEY`): 5 s timeout, US only, 1-day cache in the DB cache table, stale cache (up to 7 days) served if the provider fails.
 - `route_providers.py` - B5 clients: `valhalla_routes()` (truck, splits trips over the public server's 1,500 km cap into joined sections) and `ors_routes()` (`driving-hgv` / `driving-car`). Each returns `ProviderRoute` (miles, seconds, [lng, lat] path, per-section times) or raises `NoRouteFound` / `ProviderRefused` / `ProviderUnavailable` / `ProviderTimeout`.
 - `routes.py` - B5 `plan_routes(origin, destination, load_lb)` -> up to 3 `PlannedRoute`: Valhalla truck -> ORS truck -> ORS car, then side detours on the same provider, near-duplicate removal (>90% shared) and "via <road>" labels. 15 s per request, 25 s total. Raises `NoRoute` (422) / 502 / 504.
+- `checkpoints.py` - B6 `sample_checkpoints(route, departure, interval)` -> `CheckpointPoint`s at mile 0, every interval and the destination (a stop within 1 mile of the end merges into it), placed on the path, with ETAs from the route's section times. Pure; no rest stops.
 - `errors.py` - the one API error shape and `api_exception_handler` (set in `REST_FRAMEWORK`); raise `ProviderUnavailable` (502) / `ProviderTimeout` (504) from provider clients.
 - Use `Trip.objects.with_details()` to load trips with routes and checkpoints in 3 queries.
 

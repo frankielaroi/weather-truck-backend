@@ -62,6 +62,14 @@ No provider returned 3 routes for a ~1,000-mile trip.
 - **Decision — rain:** rain = Open-Meteo `rain` + `showers` (all liquid precipitation in the hour). Snow = `snowfall` (inches of snow per hour).
 - **Decision — wind:** the risk rules use `wind_speed_10m` (sustained); `wind_gusts_10m` is stored and shown only.
 - OSRM was ruled out: car profile only, and its demo server isn't for production use.
+## Checkpoints and arrival times
+
+Weather is checked at mile 0, every 10 / 25 / 50 miles (the driver's choice) and at the destination. A regular checkpoint less than 1 mile before the destination is merged into it.
+
+- **ETA** = departure + the time the route takes to reach that point, from the routing provider's per-section times, so slow city stretches and fast interstate stretches both count. It is not distance ÷ an average speed.
+- **Decision — no breaks:** no rest stops or driving-hours breaks are added; arrival times assume continuous driving.
+- **Decision — mile markers** are scaled so the path's length matches the provider's distance, and arrival at the destination is exactly departure + the route's total time.
+
 ## API
 
 Every error uses one shape: `{"error": {"code": "...", "message": "...", "fields": {...}}}`. `fields` appears only on 400s and maps each bad input to its messages.
