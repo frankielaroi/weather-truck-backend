@@ -6,6 +6,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 
 from apps.routing import geocoding
+from apps.routing.heatmap import get_or_build_heatmap
 from apps.routing.models import Trip
 from apps.routing.responses import trip_response
 from apps.routing.serializers import PlaceQuerySerializer, TripCreateSerializer
@@ -49,3 +50,15 @@ def trip_detail(request: Request, trip_id: int) -> Response:
     if trip is None:
         raise NotFound("Trip not found.")
     return Response(trip_response(trip))
+
+
+@api_view(["GET"])
+def trip_heatmap(request: Request, trip_id: int) -> Response:
+    """The trip's corridor weather heatmap for hours 0-48, built on first request and then saved.
+
+    Separate from the trip response so the trip can show first and the heatmap load right after.
+    """
+    trip = Trip.objects.with_details().filter(pk=trip_id).first()
+    if trip is None:
+        raise NotFound("Trip not found.")
+    return Response(get_or_build_heatmap(trip).data)

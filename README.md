@@ -178,6 +178,18 @@ A trip that fails at 422 / 502 / 504 is still saved, as `failed` with its reason
 
 Returns the same body as when the trip was created, so results can be reloaded or shared by link. Unknown id → **404** (`not_found`, "Trip not found.").
 
+### `GET /api/trips/<id>/heatmap/` — corridor weather heatmap
+
+The weather heatmap for hours 0–48 around all of the trip's routes, in the [heatmap payload](#corridor-heatmap) shape. It's built on the first request (about 1–4 s, mostly weather) and saved, so later requests read it back in well under a second with no provider calls. It's separate from the trip response so the trip can appear first and the heatmap load right after.
+
+| Status | When |
+| --- | --- |
+| 200 | The heatmap |
+| 404 | Unknown trip (`not_found`, "Trip not found.") |
+| 409 | The trip failed and has no routes (`trip_has_no_routes`, "Trip has no routes.") |
+
+**Compression:** responses are gzip-compressed when the client sends `Accept-Encoding: gzip` (responses under ~200 bytes are left alone). Chicago → Denver on the wire: heatmap **14 KB** (250 KB uncompressed), trip **28 KB** (113 KB uncompressed). Safe for this API because no response carries secrets or CSRF tokens.
+
 ### Trip response
 
 The body for a trip (`GET` / `POST` trip endpoints, B10). A full real example is committed at [`docs/example-trip-response.json`](docs/example-trip-response.json); the frontend's types mirror it, and `apps/routing/tests/test_responses.py` checks every response against the same shape.

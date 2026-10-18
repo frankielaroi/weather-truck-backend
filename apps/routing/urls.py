@@ -7,4 +7,5 @@ urlpatterns = [
     path("places/", views.place_suggestions, name="place-suggestions"),
     path("trips/", views.trip_create, name="trip-create"),
     path("trips/<int:trip_id>/", views.trip_detail, name="trip-detail"),
+    path("trips/<int:trip_id>/heatmap/", views.trip_heatmap, name="trip-heatmap"),
 ]
