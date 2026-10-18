@@ -32,11 +32,12 @@ Django API that plans truck routes, samples weather along each route at the truc
 
 ## Data Model (`apps/routing/models.py`)
 - `Trip` - origin/destination (name + lat/lng), departure time, load weight (lb), checkpoint spacing (10/25/50 mi).
-- `Route` - up to 3 options per trip: distance, duration, GeoJSON geometry, risk summary (No Travel / Severe / High miles, average risk), `is_recommended` (at most one per trip, enforced by a DB constraint). `Route.ranking_key()` encodes the recommendation order.
+- `Route` - up to 3 options per trip: distance, duration, GeoJSON geometry, risk summary (No Travel / Severe / High miles, average risk), `is_recommended` (at most one per trip, enforced by a DB constraint).
 - `Checkpoint` - weather sample on a route at the truck's ETA: wind, gusts, rain, snow, temperature, `risk_level` (null = Unknown), `risk_reasons`.
 - `ForecastCache` - hourly forecast per rounded lat/lng grid cell, reused across trips and the heatmap.
 - `RiskLevel` / `SampleInterval` - in `choices.py`. `RiskLevel` is LOW(0) → NO_TRAVEL(4), ordered so values can be compared and averaged.
 - `risk.py` - pure risk engine: `assess(WeatherSample, load_weight_lb) -> RiskAssessment(level, reasons)`. No DB/network/clock; imports only `choices.py`. Its module docstring records the boundary decisions (shared edges go up, top of scale is strict, sustained wind only, load limits strict, missing = 0, all missing = Unknown/None). It never raises: unusable weather values (text, NaN, inf, negative, beyond plausible max) are ignored and listed in `data_issues`; an unusable load weight is assumed heavy (over 40,000 lb); unexpected errors return Unknown. Use `WeatherSample.from_mapping()` for provider dicts. Property tests (hypothesis) in `tests/test_risk_fallbacks.py` guard these guarantees.
+- `recommend.py` - pure B2 logic: `summarize_route(checkpoints, distance)` -> `RouteSummary` (miles per level incl. Unknown, worst level, mile-weighted average risk, incomplete warning) and `recommend(options)` -> `Recommendation` (index, deciding step, reason, per-route warnings). Ranking: No Travel, Severe, High miles (0.1 mi tolerance), average risk (0.01), travel time, then input order.
 - Use `Trip.objects.with_details()` to load trips with routes and checkpoints in 3 queries.
 
 ## Coding Conventions & Architecture
