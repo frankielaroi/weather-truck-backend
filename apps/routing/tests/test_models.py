@@ -4,7 +4,8 @@ import pytest
 from django.db import IntegrityError
 from pytest_django import DjangoAssertNumQueries
 
-from apps.routing.models import Checkpoint, ForecastCache, RiskLevel, Route, Trip
+from apps.routing.choices import RiskLevel
+from apps.routing.models import Checkpoint, ForecastCache, Route, Trip
 
 DEPARTURE = datetime(2026, 10, 20, 8, 0, tzinfo=UTC)
 

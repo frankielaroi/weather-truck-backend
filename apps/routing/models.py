@@ -5,24 +5,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.db.models import Prefetch, Q
 
-
-class RiskLevel(models.IntegerChoices):
-    """Weather risk at a checkpoint. Integer values are ordered so they can be averaged and compared."""
-
-    LOW = 0, "Low"
-    MODERATE = 1, "Moderate"
-    HIGH = 2, "High"
-    SEVERE = 3, "Severe"
-    NO_TRAVEL = 4, "No Travel"
-
-
-class SampleInterval(models.IntegerChoices):
-    """How far apart weather checkpoints are placed along a route."""
-
-    EVERY_10_MILES = 10, "Every 10 miles"
-    EVERY_25_MILES = 25, "Every 25 miles"
-    EVERY_50_MILES = 50, "Every 50 miles"
-
+from apps.routing.choices import RiskLevel, SampleInterval
 
 LATITUDE_VALIDATORS = [MinValueValidator(-90), MaxValueValidator(90)]
 LONGITUDE_VALIDATORS = [MinValueValidator(-180), MaxValueValidator(180)]
@@ -159,7 +142,12 @@ class Checkpoint(models.Model):
     temperature_f = models.FloatField(null=True, blank=True)
     weather_description = models.CharField(max_length=100, blank=True)
 
-    risk_level = models.PositiveSmallIntegerField(choices=RiskLevel.choices, default=RiskLevel.LOW)
+    risk_level = models.PositiveSmallIntegerField(
+        choices=RiskLevel.choices,
+        null=True,
+        blank=True,
+        help_text="Null means Unknown: the forecast had no wind, rain or snow values.",
+    )
     risk_reasons = models.JSONField(
         default=list,
         blank=True,
