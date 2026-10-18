@@ -187,8 +187,17 @@ def fetch_forecasts(cells: Sequence[Cell]) -> dict[Cell, HourlyForecast]:
     """Fetch cells in parallel batches. Cells in a failed batch are simply absent from the result."""
     batches = [list(cells[i : i + BATCH_SIZE]) for i in range(0, len(cells), BATCH_SIZE)]
     with ThreadPoolExecutor(max_workers=min(4, len(batches)) or 1) as pool:
-        results = list(pool.map(_fetch_batch, batches))
+        results = list(pool.map(_safe_fetch_batch, batches))
     return {cell: forecast for batch in results for cell, forecast in batch.items()}
+
+
+def _safe_fetch_batch(cells: list[Cell]) -> dict[Cell, HourlyForecast]:
+    """A batch that fails in any way just leaves its cells out; it never fails the trip."""
+    try:
+        return _fetch_batch(cells)
+    except Exception:
+        logger.exception("Weather batch of %d cells failed unexpectedly", len(cells))
+        return {}
 
 
 def _fetch_batch(cells: list[Cell]) -> dict[Cell, HourlyForecast]:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import json
+from collections.abc import Callable
 from datetime import UTC, datetime
 from functools import cache
 from pathlib import Path
@@ -38,17 +39,23 @@ def chicago_denver_routes() -> list[PlannedRoute]:
     )
 
 
-def forecast_location(start: datetime, wind_mph: float = 7.0) -> dict[str, Any]:
-    """A real Open-Meteo location, re-timed to hourly from `start`, with a constant wind."""
+def forecast_location(
+    start: datetime, wind_mph: float = 7.0, wind_by_hour: Callable[[int], float] | None = None
+) -> dict[str, Any]:
+    """A real Open-Meteo location, re-timed to hourly from `start`, with a constant wind
+    (or `wind_by_hour(hour_index)` mph, to make levels change over time)."""
     loc: dict[str, Any] = copy.deepcopy(_WEATHER[0])
     hours = len(loc["hourly"]["time"])
     first = int(start.timestamp()) // 3600 * 3600
     loc["hourly"]["time"] = [first + 3600 * i for i in range(hours)]
-    loc["hourly"]["wind_speed_10m"] = [wind_mph / MPH_PER_MS] * hours
+    winds = [wind_by_hour(i) if wind_by_hour else wind_mph for i in range(hours)]
+    loc["hourly"]["wind_speed_10m"] = [w / MPH_PER_MS for w in winds]
     return loc
 
 
-def weather_get(wind_mph: float = 7.0, start: datetime | None = None) -> mock.Mock:
+def weather_get(
+    wind_mph: float = 7.0, start: datetime | None = None, wind_by_hour: Callable[[int], float] | None = None
+) -> mock.Mock:
     """A fake `requests.get` for Open-Meteo: one location per requested point.
     Hours start at 00:00 UTC on `start`'s day (default: today), like the real API."""
     day = (start or datetime.now(UTC)).replace(hour=0, minute=0, second=0, microsecond=0)
@@ -57,7 +64,7 @@ def weather_get(wind_mph: float = 7.0, start: datetime | None = None) -> mock.Mo
         count = len(str(params["latitude"]).split(","))
         res = mock.Mock(spec=requests.Response)
         res.status_code, res.ok, res.text = 200, True, ""
-        res.json.return_value = [forecast_location(day, wind_mph) for _ in range(count)]
+        res.json.return_value = [forecast_location(day, wind_mph, wind_by_hour) for _ in range(count)]
         return res
 
     return mock.Mock(side_effect=get)
