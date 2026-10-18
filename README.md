@@ -70,6 +70,15 @@ Weather is checked at mile 0, every 10 / 25 / 50 miles (the driver's choice) and
 - **Decision — no breaks:** no rest stops or driving-hours breaks are added; arrival times assume continuous driving.
 - **Decision — mile markers** are scaled so the path's length matches the provider's distance, and arrival at the destination is exactly departure + the route's total time.
 
+## Weather at each checkpoint
+
+- Each checkpoint is snapped to a ~1 km grid cell, so nearby points share a forecast. Cells without a fresh forecast are fetched from Open-Meteo in batches of 50 points per request (in parallel, 10 s timeout each) and cached in Postgres (`ForecastCache`) for 1 hour.
+- Each checkpoint uses the forecast hour **nearest its arrival time**; exactly half past rounds up (14:40 → 15:00, 14:20 → 14:00, 14:30 → 15:00).
+- We request SI units and convert once: m/s × 2.23694 → mph, mm ÷ 25.4 → in, cm of snow ÷ 2.54 → in, °C → °F.
+- **Decision — beyond the forecast:** an arrival outside the forecast's hours is **Unknown** with the note "Beyond forecast range", never Low.
+- **Decision — failures:** if a batch fails, its checkpoints use a cached forecast up to 6 hours old (with a note saying how old); otherwise they are Unknown with "Weather unavailable for this checkpoint". The trip still completes.
+- Measured on Chicago → Denver (3 routes, 134 checkpoints at 25 mi): 3 requests and 2.8 s on a cold cache, 0 requests and 0.1 s when repeated within the hour.
+
 ## API
 
 Every error uses one shape: `{"error": {"code": "...", "message": "...", "fields": {...}}}`. `fields` appears only on 400s and maps each bad input to its messages.
@@ -107,8 +116,8 @@ uv run mypy .            # types
 | Model | What it holds |
 | --- | --- |
 | `Trip` | Origin, destination, departure time, load weight, checkpoint spacing (10/25/50 mi) |
-| `Route` | Up to 3 options per trip: distance, duration, geometry, risk summary, recommended flag |
-| `Checkpoint` | Weather at the truck's ETA at a point on a route, plus its risk level and reasons |
+| `Route` | Up to 3 options per trip: label, provider and profile, distance, duration, GeoJSON path, miles per risk level (incl. Unknown), average and worst risk, warnings, and the recommendation flag, reason and deciding step |
+| `Checkpoint` | A point on a route: mile, position, ETA, the forecast hour used, wind / gust / rain / snow / temperature, risk level (null = Unknown), reasons and data notes |
 | `ForecastCache` | Hourly forecasts per grid cell, reused across trips and the heatmap |
 
 ## Environment variables
