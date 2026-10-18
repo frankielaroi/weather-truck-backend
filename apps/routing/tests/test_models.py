@@ -33,19 +33,6 @@ def make_route(trip: Trip, index: int, **overrides: object) -> Route:
     return Route.objects.create(trip=trip, index=index, **fields)
 
 
-def test_ranking_key_follows_preference_order() -> None:
-    fewer_severe = Route(no_travel_miles=0, severe_miles=10, high_miles=90, average_risk=2, duration_seconds=9000)
-    more_severe = Route(no_travel_miles=0, severe_miles=20, high_miles=0, average_risk=0, duration_seconds=100)
-    tie_on_risk_but_faster = Route(
-        no_travel_miles=0, severe_miles=10, high_miles=90, average_risk=2, duration_seconds=8000
-    )
-    crosses_no_travel = Route(no_travel_miles=5, severe_miles=0, high_miles=0, average_risk=0, duration_seconds=1)
-
-    ranked = sorted([more_severe, crosses_no_travel, fewer_severe, tie_on_risk_but_faster], key=Route.ranking_key)
-
-    assert ranked == [tie_on_risk_but_faster, fewer_severe, more_severe, crosses_no_travel]
-
-
 def test_risk_levels_are_ordered() -> None:
     assert RiskLevel.LOW < RiskLevel.MODERATE < RiskLevel.HIGH < RiskLevel.SEVERE < RiskLevel.NO_TRAVEL
 

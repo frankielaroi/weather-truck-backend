@@ -108,21 +108,6 @@ class Route(models.Model):
     def __str__(self) -> str:
         return f"Trip {self.trip_id} route {self.index}: {self.summary or 'unnamed'}"
 
-    def ranking_key(self) -> tuple[float, float, float, float, int]:
-        """Sort key for picking the recommended route — lower is better.
-
-        Follows the assessment's preference order: fewest Severe miles, then fewest High miles,
-        then lowest average risk, then shortest travel time. No Travel miles rank ahead of all
-        of those, since a route that crosses a No Travel zone should never win on travel time.
-        """
-        return (
-            self.no_travel_miles,
-            self.severe_miles,
-            self.high_miles,
-            self.average_risk,
-            self.duration_seconds,
-        )
-
 
 class Checkpoint(models.Model):
     """A weather sample point on a route, taken at the truck's estimated arrival time there."""
