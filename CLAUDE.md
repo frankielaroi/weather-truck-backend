@@ -37,6 +37,8 @@ Django API that plans truck routes, samples weather along each route at the truc
 - `ForecastCache` - hourly forecast per rounded lat/lng grid cell, reused across trips and the heatmap.
 - `RiskLevel` / `SampleInterval` - in `choices.py`. `RiskLevel` is LOW(0) → NO_TRAVEL(4), ordered so values can be compared and averaged.
 - `risk.py` - pure risk engine: `assess(WeatherSample, load_weight_lb) -> RiskAssessment(level, reasons)`. No DB/network/clock; imports only `choices.py`. Its module docstring records the boundary decisions (shared edges go up, top of scale is strict, sustained wind only, load limits strict, missing = 0, all missing = Unknown/None). It never raises: unusable weather values (text, NaN, inf, negative, beyond plausible max) are ignored and listed in `data_issues`; an unusable load weight is assumed heavy (over 40,000 lb); unexpected errors return Unknown. Use `WeatherSample.from_mapping()` for provider dicts. Property tests (hypothesis) in `tests/test_risk_fallbacks.py` guard these guarantees.
+- `geocoding.py` - B4 place suggestions from ORS Pelias (`ORS_BASE_URL`, `ORS_API_KEY`): 5 s timeout, US only, 1-day cache in the DB cache table, stale cache (up to 7 days) served if the provider fails.
+- `errors.py` - the one API error shape and `api_exception_handler` (set in `REST_FRAMEWORK`); raise `ProviderUnavailable` (502) / `ProviderTimeout` (504) from provider clients.
 - Use `Trip.objects.with_details()` to load trips with routes and checkpoints in 3 queries.
 
 ## Coding Conventions & Architecture

@@ -22,10 +22,34 @@ Frontend: [weather-truck-frontend](https://github.com/frankielaroi/weather-truck
    cp .env.example .env          # set DJANGO_SECRET_KEY, DATABASE_URL, API keys
    uv sync
    uv run python manage.py migrate
+   uv run python manage.py createcachetable   # cache for place searches and forecasts
    uv run python manage.py runserver
    ```
 
 Check it: `GET http://localhost:8000/api/health/` → `{"status": "ok"}`
+
+## API
+
+Every error uses one shape: `{"error": {"code": "...", "message": "...", "fields": {...}}}`. `fields` appears only on 400s and maps each bad input to its messages.
+
+### `GET /api/places/?q=<text>` — place suggestions
+
+Up to 5 US places matching `q`. Fewer than 3 non-space characters returns an empty list without calling the provider. Identical searches are cached for a day.
+
+```http
+GET /api/places/?q=Denver
+```
+
+```json
+{"results": [{"name": "Denver, CO, USA", "lat": 39.740959, "lng": -104.985798}, {"name": "Denver County, CO, USA", "lat": 39.7618, "lng": -104.8811}]}
+```
+
+| Status | When |
+| --- | --- |
+| 200 | Results (possibly empty) |
+| 400 | `q` missing or longer than 100 characters (`invalid_input`, with `fields.q`) |
+| 502 | Geocoder failed or refused the request (`provider_unavailable`) |
+| 504 | Geocoder didn't answer within 5 s (`provider_timeout`) |
 
 ## Quality checks
 
