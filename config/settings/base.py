@@ -141,3 +141,5 @@ CACHES = {
 ORS_API_KEY: str = env("ORS_API_KEY", default="")
 # api.openrouteservice.org shuts down Nov 2026; api.heigit.org is its replacement.
 ORS_BASE_URL: str = env("ORS_BASE_URL", default="https://api.heigit.org").rstrip("/")
+# Routing, 1st choice (public server, no key; see the README for its limits).
+VALHALLA_URL: str = env("VALHALLA_URL", default="https://valhalla1.openstreetmap.de").rstrip("/")
