@@ -120,9 +120,24 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.AllowAny"],
     "UNAUTHENTICATED_USER": None,
+    "EXCEPTION_HANDLER": "apps.routing.errors.api_exception_handler",
+}
+
+
+# Cache — in Postgres, so every gunicorn worker shares it and it survives restarts.
+# Create the table once per database: `python manage.py createcachetable` (tests do this themselves).
+
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.db.DatabaseCache",
+        "LOCATION": "django_cache",
+        "TIMEOUT": 60 * 60 * 24,
+    }
 }
 
 
 # Third-party API keys (routing, geocoding, weather)
 
 ORS_API_KEY: str = env("ORS_API_KEY", default="")
+# api.openrouteservice.org shuts down Nov 2026; api.heigit.org is its replacement.
+ORS_BASE_URL: str = env("ORS_BASE_URL", default="https://api.heigit.org").rstrip("/")

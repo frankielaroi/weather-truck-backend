@@ -1,0 +1,299 @@
+{
+ "geocoding": {
+  "version": "0.2",
+  "attribution": "https://openrouteservice.org/terms-of-service/#attribution-geocode",
+  "query": {
+   "text": "Denver",
+   "parser": "pelias",
+   "parsed_text": {
+    "subject": "Denver",
+    "locality": "Denver"
+   },
+   "size": 5,
+   "layers": [
+    "venue",
+    "street",
+    "country",
+    "macroregion",
+    "region",
+    "county",
+    "localadmin",
+    "locality",
+    "borough",
+    "neighbourhood",
+    "continent",
+    "empire",
+    "dependency",
+    "macrocounty",
+    "macrohood",
+    "microhood",
+    "disputed",
+    "postalcode",
+    "ocean",
+    "marinearea"
+   ],
+   "private": false,
+   "boundary.country": [
+    "USA"
+   ],
+   "lang": {
+    "name": "English",
+    "iso6391": "en",
+    "iso6393": "eng",
+    "via": "default",
+    "defaulted": true
+   },
+   "querySize": 20
+  },
+  "warnings": [
+   "performance optimization: excluding 'address' layer"
+  ],
+  "engine": {
+   "name": "Pelias",
+   "author": "Mapzen",
+   "version": "1.0"
+  },
+  "timestamp": 1792284820010
+ },
+ "type": "FeatureCollection",
+ "features": [
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -104.985798,
+     39.740959
+    ]
+   },
+   "properties": {
+    "id": "85928879",
+    "gid": "whosonfirst:locality:85928879",
+    "layer": "locality",
+    "source": "whosonfirst",
+    "source_id": "85928879",
+    "name": "Denver",
+    "accuracy": "centroid",
+    "country": "United States",
+    "country_gid": "whosonfirst:country:85633793",
+    "country_a": "USA",
+    "region": "Colorado",
+    "region_gid": "whosonfirst:region:85688603",
+    "region_a": "CO",
+    "county": "Denver County",
+    "county_gid": "whosonfirst:county:102086135",
+    "locality": "Denver",
+    "locality_gid": "whosonfirst:locality:85928879",
+    "continent": "North America",
+    "continent_gid": "whosonfirst:continent:102191575",
+    "label": "Denver, CO, USA",
+    "addendum": {
+     "concordances": {
+      "dbp:id": "Denver",
+      "fb:id": "en.denver",
+      "fct:id": "08c221ee-8f76-11e1-848f-cfd5bf3ef515",
+      "fips:code": "0820000",
+      "gn:id": 5419384,
+      "gp:id": 2391279,
+      "loc:id": "n79055157",
+      "ne:id": 1159151483,
+      "nyt:id": "21416322881006935701",
+      "qs_pg:id": 817425,
+      "wd:id": "Q16554",
+      "wk:page": "Denver"
+     }
+    }
+   },
+   "bbox": [
+    -105.109967,
+    39.614311,
+    -104.599581,
+    39.914209
+   ]
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -104.87635,
+     39.76204
+    ]
+   },
+   "properties": {
+    "id": "5419396",
+    "gid": "geonames:county:5419396",
+    "layer": "county",
+    "source": "geonames",
+    "source_id": "5419396",
+    "name": "Denver County",
+    "accuracy": "centroid",
+    "country": "United States",
+    "country_gid": "whosonfirst:country:85633793",
+    "country_a": "USA",
+    "region": "Colorado",
+    "region_gid": "whosonfirst:region:85688603",
+    "region_a": "CO",
+    "county": "Denver County",
+    "county_gid": "whosonfirst:county:102086135",
+    "county_a": "DN",
+    "continent": "North America",
+    "continent_gid": "whosonfirst:continent:102191575",
+    "label": "Denver County, CO, USA",
+    "addendum": {
+     "geonames": {
+      "feature_code": "ADM2"
+     }
+    }
+   }
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -95.301697,
+     29.780672
+    ]
+   },
+   "properties": {
+    "id": "420543471",
+    "gid": "whosonfirst:neighbourhood:420543471",
+    "layer": "neighbourhood",
+    "source": "whosonfirst",
+    "source_id": "420543471",
+    "name": "Denver Harbor",
+    "accuracy": "centroid",
+    "country": "United States",
+    "country_gid": "whosonfirst:country:85633793",
+    "country_a": "USA",
+    "region": "Texas",
+    "region_gid": "whosonfirst:region:85688753",
+    "region_a": "TX",
+    "county": "Harris County",
+    "county_gid": "whosonfirst:county:102081111",
+    "locality": "Houston",
+    "locality_gid": "whosonfirst:locality:101725629",
+    "neighbourhood": "Denver Harbor",
+    "neighbourhood_gid": "whosonfirst:neighbourhood:420543471",
+    "continent": "North America",
+    "continent_gid": "whosonfirst:continent:102191575",
+    "label": "Denver Harbor, Houston, TX, USA",
+    "addendum": {
+     "concordances": {
+      "gp:id": 28751212,
+      "wd:id": "Q5259732"
+     }
+    }
+   },
+   "bbox": [
+    -95.306697,
+    29.775672,
+    -95.296697,
+    29.785672
+   ]
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -97.288399,
+     35.230196
+    ]
+   },
+   "properties": {
+    "id": "85814357",
+    "gid": "whosonfirst:neighbourhood:85814357",
+    "layer": "neighbourhood",
+    "source": "whosonfirst",
+    "source_id": "85814357",
+    "name": "Denver",
+    "accuracy": "centroid",
+    "country": "United States",
+    "country_gid": "whosonfirst:country:85633793",
+    "country_a": "USA",
+    "region": "Oklahoma",
+    "region_gid": "whosonfirst:region:85688585",
+    "region_a": "OK",
+    "county": "Cleveland County",
+    "county_gid": "whosonfirst:county:102083969",
+    "locality": "Norman",
+    "locality_gid": "whosonfirst:locality:101714727",
+    "neighbourhood": "Denver",
+    "neighbourhood_gid": "whosonfirst:neighbourhood:85814357",
+    "continent": "North America",
+    "continent_gid": "whosonfirst:continent:102191575",
+    "label": "Denver, Norman, OK, USA",
+    "addendum": {
+     "concordances": {
+      "gn:id": 4535017,
+      "gp:id": 2391273,
+      "qs_pg:id": 1327603
+     }
+    }
+   },
+   "bbox": [
+    -97.293399,
+    35.225196,
+    -97.283399,
+    35.235196
+   ]
+  },
+  {
+   "type": "Feature",
+   "geometry": {
+    "type": "Point",
+    "coordinates": [
+     -102.830376,
+     32.968657
+    ]
+   },
+   "properties": {
+    "id": "101723781",
+    "gid": "whosonfirst:locality:101723781",
+    "layer": "locality",
+    "source": "whosonfirst",
+    "source_id": "101723781",
+    "name": "Denver City",
+    "accuracy": "centroid",
+    "country": "United States",
+    "country_gid": "whosonfirst:country:85633793",
+    "country_a": "USA",
+    "region": "Texas",
+    "region_gid": "whosonfirst:region:85688753",
+    "region_a": "TX",
+    "county": "Yoakum County",
+    "county_gid": "whosonfirst:county:102081939",
+    "locality": "Denver City",
+    "locality_gid": "whosonfirst:locality:101723781",
+    "continent": "North America",
+    "continent_gid": "whosonfirst:continent:102191575",
+    "label": "Denver City, TX, USA",
+    "addendum": {
+     "concordances": {
+      "fct:id": "08c22220-8f76-11e1-848f-cfd5bf3ef515",
+      "fips:code": "4819984",
+      "gn:id": 5520110,
+      "gp:id": 2391331,
+      "qs_pg:id": 159175,
+      "wd:id": "Q949583",
+      "wk:page": "Denver City, Texas"
+     }
+    }
+   },
+   "bbox": [
+    -102.854631,
+    32.956367,
+    -102.81749,
+    32.982421
+   ]
+  }
+ ],
+ "bbox": [
+  -105.109967,
+  29.775672,
+  -95.296697,
+  39.914209
+ ]
+}
