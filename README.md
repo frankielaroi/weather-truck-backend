@@ -79,6 +79,14 @@ Weather is checked at mile 0, every 10 / 25 / 50 miles (the driver's choice) and
 - **Decision — failures:** if a batch fails, its checkpoints use a cached forecast up to 6 hours old (with a note saying how old); otherwise they are Unknown with "Weather unavailable for this checkpoint". The trip still completes.
 - Measured on Chicago → Denver (3 routes, 134 checkpoints at 25 mi): 3 requests and 2.8 s on a cold cache, 0 requests and 0.1 s when repeated within the hour.
 
+## Planning a trip
+
+`apps.routing.trips.create_trip()` runs routing → checkpoints → weather and risk → route scores and recommendation, then saves the trip, its routes and their checkpoints in **one transaction**. If any step fails, the trip is saved as **Failed** with the reason and nothing half-done is kept.
+
+- **Decision — cached route plans:** a route plan is cached for 24 h per origin, destination and truck weight (routes don't depend on the departure time). With the 1-hour forecast cache, a repeated trip makes no provider calls.
+- Each step's time is logged, e.g. `routing 3314 ms, checkpoints 34 ms, weather 1429 ms, save 217 ms`.
+- Measured on Chicago → Denver at 25 mi: **5.0 s** on a cold cache, **0.28 s** warm; loading a saved trip takes 3 queries.
+
 ## API
 
 Every error uses one shape: `{"error": {"code": "...", "message": "...", "fields": {...}}}`. `fields` appears only on 400s and maps each bad input to its messages.
