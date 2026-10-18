@@ -8,6 +8,7 @@ from django.db import models
 from django.db.models import Prefetch, Q
 
 from apps.routing.choices import RiskLevel, SampleInterval
+from apps.routing.geometry import simplified_coordinates
 from apps.routing.recommend import DecidingStep
 
 if TYPE_CHECKING:
@@ -99,6 +100,9 @@ class Route(models.Model):
     distance_miles = models.FloatField(validators=[MinValueValidator(0)])
     duration_seconds = models.PositiveIntegerField()
     geometry = models.JSONField(help_text="GeoJSON LineString of the route path.")
+    display_path = models.JSONField(
+        default=list, blank=True, help_text="[lng, lat] pairs simplified to within 30 m, for the API response."
+    )
 
     # Risk summary (B2), from this route's checkpoints. Each checkpoint stands for the road halfway to
     # its neighbours; these are those miles by level, and they add up to distance_miles.
@@ -151,6 +155,7 @@ class Route(models.Model):
     ) -> Route:
         """An unsaved row from the planner's route (B5), its risk summary and the recommendation (B2)."""
         recommended = recommendation is not None and recommendation.recommended_index == index
+        geometry = {"type": "LineString", "coordinates": [[lng, lat] for lng, lat in planned.path]}
         warnings = summary.warnings
         if recommendation is not None and index < len(recommendation.warnings):
             warnings = recommendation.warnings[index]
@@ -163,7 +168,8 @@ class Route(models.Model):
             notes=list(planned.notes),
             distance_miles=summary.distance_miles,
             duration_seconds=max(0, round(planned.duration_seconds)),
-            geometry={"type": "LineString", "coordinates": [[lng, lat] for lng, lat in planned.path]},
+            geometry=geometry,
+            display_path=simplified_coordinates(geometry),
             no_travel_miles=summary.no_travel_miles,
             severe_miles=summary.severe_miles,
             high_miles=summary.high_miles,
