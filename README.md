@@ -110,6 +110,69 @@ GET /api/places/?q=Denver
 | 502 | Geocoder failed or refused the request (`provider_unavailable`) |
 | 504 | Geocoder didn't answer within 5 s (`provider_timeout`) |
 
+### Trip response
+
+The body for a trip (`GET` / `POST` trip endpoints, B10). A full real example is committed at [`docs/example-trip-response.json`](docs/example-trip-response.json); the frontend's types mirror it, and `apps/routing/tests/test_responses.py` checks every response against the same shape.
+
+- **Risk levels** are sent as number and name: `{"value": 3, "name": "Severe"}`. Unknown is `{"value": null, "name": "Unknown"}` — never treated as Low.
+- **Times** are ISO 8601 in UTC with an offset, e.g. `"2026-10-20T14:00:00+00:00"`. The frontend shows them in local time.
+- **Rounding** happens only here, for display: miles to 0.1, speeds and °F to whole numbers, rain/snow to 0.01 in/hr, average risk to 0.01, coordinates to 5 decimals (~1 m). Stored values keep full precision.
+- **Decision — simplified paths:** route paths are simplified to within 30 m of the road when the trip is saved (often 10,000 → ~1,000 points), so a 1,000-mile trip with 3 routes is ~110 KB (~27 KB gzipped). Checkpoints keep their exact positions.
+
+**Trip**
+
+| Field | Type | Unit / values |
+| --- | --- | --- |
+| `id` | int | |
+| `status` | string | `"pending"`, `"ready"`, `"failed"` |
+| `error` | string \| null | Why a failed trip failed |
+| `created_at` | string | UTC time |
+| `inputs.origin`, `inputs.destination` | object | `name` (string), `lat`, `lng` (degrees) |
+| `inputs.departure_at` | string | UTC time |
+| `inputs.load_weight_lb` | int | pounds |
+| `inputs.interval_miles` | int | miles: 10, 25 or 50 |
+| `recommended_route_index` | int \| null | `index` of the recommended route |
+| `routes` | array | Route objects, in provider order (empty for a failed trip) |
+
+**Route**
+
+| Field | Type | Unit / values |
+| --- | --- | --- |
+| `index` | int | 0, 1, 2 |
+| `letter` | string | `"A"`, `"B"`, `"C"` (the map's labels; reasons use them) |
+| `label` | string | e.g. `"via I-80 W"` |
+| `provider`, `profile` | string | e.g. `"valhalla"`, `"truck"` / `"car"` |
+| `notes` | string[] | Caveats, e.g. "Not truck-specific: …" |
+| `distance_miles` | number | miles (0.1) |
+| `duration_seconds` | int | seconds |
+| `arrival_at` | string | UTC time: departure + duration |
+| `path` | GeoJSON LineString | `coordinates` are `[lng, lat]` pairs (degrees) |
+| `risk.no_travel_miles`, `severe_miles`, `high_miles`, `moderate_miles`, `low_miles`, `unknown_miles` | number | miles (0.1); add up to `distance_miles` |
+| `risk.worst_level` | level | Worst known level, or Unknown |
+| `risk.average_risk` | number \| null | 0–4, mile-weighted, Unknown left out (0.01); null if nothing is known |
+| `is_recommended` | bool | Exactly one route per ready trip |
+| `recommendation_reason` | string \| null | On the recommended route, e.g. "Recommended: 12 fewer Severe miles than Route B." |
+| `deciding_step` | string \| null | `no_travel_miles`, `severe_miles`, `high_miles`, `average_risk`, `travel_time`, `route_order`, `only_route` |
+| `warnings` | string[] | e.g. "No safe route — consider delaying departure." |
+| `checkpoints` | array | Checkpoint objects, from origin to destination |
+
+**Checkpoint**
+
+| Field | Type | Unit / values |
+| --- | --- | --- |
+| `sequence` | int | 0 at the origin |
+| `mile` | number | miles from the origin (0.1) |
+| `lat`, `lng` | number | degrees (5 decimals) |
+| `arrival_at` | string | UTC time: the truck's ETA |
+| `forecast_time` | string \| null | UTC time of the forecast hour used (nearest the ETA) |
+| `weather.wind_mph`, `weather.gust_mph` | int \| null | mph (sustained wind sets the risk; gusts are shown only) |
+| `weather.rain_in_per_hr`, `weather.snow_in_per_hr` | number \| null | inches per hour (0.01) |
+| `weather.temperature_f` | int \| null | °F |
+| `weather.description` | string \| null | e.g. "Light snow" |
+| `risk.level` | level | |
+| `risk.reasons` | string[] | Every factor at Moderate or above, e.g. "Wind 47 mph with 32,000 lb load → No Travel" |
+| `risk.notes` | string[] | Data problems, e.g. "Beyond forecast range" |
+
 ## Quality checks
 
 ```bash
