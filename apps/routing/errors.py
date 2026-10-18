@@ -5,7 +5,8 @@ Every error response body is:
     {"error": {"code": "<machine code>", "message": "<sentence for the driver>", "fields": {...}}}
 
 `fields` appears only on 400s and maps each bad input to its messages, so the frontend can show
-each one under its field. Unexpected exceptions become a plain 500 in this shape too; tracebacks
+each one under its field. Nested inputs use dotted names, e.g. "origin.lat". Unexpected exceptions
+become a plain 500 in this shape too; tracebacks
 are logged, never sent.
 """
 
@@ -75,10 +76,24 @@ def api_exception_handler(exc: Exception, context: dict[str, Any]) -> Response:
     return response
 
 
-def _field_messages(detail: object) -> dict[str, list[str]]:
+def _field_messages(detail: object, prefix: str = "") -> dict[str, list[str]]:
+    """Flatten DRF's nested errors to dotted field names: {"origin": {"lat": [...]}} -> {"origin.lat": [...]}."""
     if isinstance(detail, dict):
-        return {str(field): [str(m) for m in _as_list(messages)] for field, messages in detail.items()}
-    return {"non_field_errors": [str(m) for m in _as_list(detail)]}
+        out: dict[str, list[str]] = {}
+        for field, messages in detail.items():
+            out.update(_field_messages(messages, f"{prefix}{field}."))
+        return out
+    key = prefix.rstrip(".") or "non_field_errors"
+    items = _as_list(detail)
+    if any(isinstance(item, dict | list) for item in items):  # nested list (e.g. many=True) -> index keys
+        out = {}
+        for i, item in enumerate(items):
+            if isinstance(item, dict | list):
+                out.update(_field_messages(item, f"{prefix}{i}."))
+            else:
+                out.setdefault(key, []).append(str(item))
+        return out
+    return {key: [str(m) for m in items]}
 
 
 def _as_list(value: object) -> list[object]:

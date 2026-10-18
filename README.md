@@ -89,7 +89,7 @@ Weather is checked at mile 0, every 10 / 25 / 50 miles (the driver's choice) and
 
 ## API
 
-Every error uses one shape: `{"error": {"code": "...", "message": "...", "fields": {...}}}`. `fields` appears only on 400s and maps each bad input to its messages.
+Every error uses one shape: `{"error": {"code": "...", "message": "...", "fields": {...}}}`. `fields` appears only on 400s and maps each bad input to its messages; nested inputs use dotted names (`"origin.lat"`). No login is needed.
 
 ### `GET /api/places/?q=<text>` — place suggestions
 
@@ -109,6 +109,47 @@ GET /api/places/?q=Denver
 | 400 | `q` missing or longer than 100 characters (`invalid_input`, with `fields.q`) |
 | 502 | Geocoder failed or refused the request (`provider_unavailable`) |
 | 504 | Geocoder didn't answer within 5 s (`provider_timeout`) |
+
+### `POST /api/trips/` — plan a trip
+
+Validates the inputs, plans and scores the trip (routing → checkpoints → weather → risk → recommendation), saves it and returns it with **201** in the [trip response](#trip-response) shape. Takes about 5 s on a cold cache, under 1 s for a repeated trip.
+
+```http
+POST /api/trips/
+Content-Type: application/json
+
+{
+  "origin": {"name": "Chicago, IL, USA", "lat": 41.8781, "lng": -87.6298},
+  "destination": {"name": "Denver, CO, USA", "lat": 39.7392, "lng": -104.9903},
+  "departure_at": "2026-10-20T14:00:00+00:00",
+  "load_weight_lb": 32000,
+  "interval_miles": 25
+}
+```
+
+Input rules (each failure is a 400 with a message under its field):
+
+| Field | Rule |
+| --- | --- |
+| `origin`, `destination` | `name` (1–255 characters), `lat` −90…90, `lng` −180…180; the two must be more than 50 m apart |
+| `departure_at` | ISO 8601; no more than 1 hour in the past and no more than 48 hours ahead (**Decision:** beyond 48 h the forecast can't cover the trip). A time without a zone is read as UTC |
+| `load_weight_lb` | whole number, 1–200,000 |
+| `interval_miles` | 10, 25 or 50 |
+
+| Status | When |
+| --- | --- |
+| 201 | Trip planned (full trip in the body) |
+| 400 | Bad input (`invalid_input` with `fields`), or a body that isn't JSON (`parse_error`) |
+| 422 | No road route between the places (`no_route`, "No route found between these places.") |
+| 429 | Too many trips from one visitor (`throttled`; default 20 per minute, `TRIP_CREATE_RATE`) |
+| 502 | A provider failed (`provider_unavailable`) |
+| 504 | A provider timed out (`provider_timeout`) |
+
+A trip that fails at 422 / 502 / 504 is still saved, as `failed` with its reason, and can be fetched.
+
+### `GET /api/trips/<id>/` — a saved trip
+
+Returns the same body as when the trip was created, so results can be reloaded or shared by link. Unknown id → **404** (`not_found`, "Trip not found.").
 
 ### Trip response
 
@@ -203,4 +244,6 @@ uv run mypy .            # types
 | `CSRF_TRUSTED_ORIGINS` | Production only: trusted origins for admin/CSRF |
 | `ORS_API_KEY` | OpenRouteService key (geocoding + 2nd/3rd routing options), from the [HeiGIT dashboard](https://account.heigit.org/manage/key) |
 | `ORS_BASE_URL` | OpenRouteService base address (default `https://api.heigit.org`) |
+| `TRIP_CREATE_RATE` | Trip creations allowed per visitor (default `20/min`) |
+| `NUM_PROXIES` | Proxies in front of the app in production (e.g. `1`), so rate limits see the real client address |
 | `VALHALLA_URL` | First-choice routing server (default `https://valhalla1.openstreetmap.de`) |

@@ -46,7 +46,8 @@ Django API that plans truck routes, samples weather along each route at the truc
 - `trips.py` - B8 `create_trip(TripRequest)`: route plan (cached 24 h per ends + truck weight) -> checkpoints -> one weather call for all routes -> summaries + recommendation -> trip, routes and checkpoints saved in one transaction as Ready. On any failure a Failed trip is saved with the reason and the error re-raised. Logs per-step times. The only module that uses both providers and the DB.
 - `responses.py` - B9 `trip_response(trip)`: the trip JSON (field list in the README; real example in `docs/example-trip-response.json`; shape enforced by `tests/test_responses.py`). Levels as `{value, name}`, GeoJSON paths from `Route.display_path`, display rounding only here. Use with `Trip.objects.with_details()` (no extra queries).
 - `geometry.py` - path simplification (Ramer–Douglas–Peucker, 30 m) used for `Route.display_path`.
-- `errors.py` - the one API error shape and `api_exception_handler` (set in `REST_FRAMEWORK`); raise `ProviderUnavailable` (502) / `ProviderTimeout` (504) from provider clients.
+- API (B10): `POST /api/trips/` (`TripCreateSerializer` -> `create_trip` -> 201 with `trip_response`, rate-limited by `TripCreateThrottle`), `GET /api/trips/<id>/`, `GET /api/places/?q=`. Input rules live in `serializers.py`. Shared fakes for trip-level tests are in `tests/fakes.py`.
+- `errors.py` - the one API error shape and `api_exception_handler` (set in `REST_FRAMEWORK`; nested field errors flattened to dotted names like `origin.lat`); raise `ProviderUnavailable` (502) / `ProviderTimeout` (504) from provider clients.
 - Use `Trip.objects.with_details()` to load trips with routes and checkpoints in 3 queries.
 
 ## Coding Conventions & Architecture
