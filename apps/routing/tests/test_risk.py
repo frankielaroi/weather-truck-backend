@@ -88,7 +88,7 @@ def test_worst_factor_wins() -> None:
 
 def test_all_missing_is_unknown() -> None:
     result = assess(WeatherSample(), LIGHT_LOAD_LB)
-    assert result == RiskAssessment(level=None, reasons=())
+    assert result == RiskAssessment(level=None, missing=("wind", "rain", "snow"))
     assert result.label == "Unknown"
 
 

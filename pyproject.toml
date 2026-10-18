@@ -18,6 +18,7 @@ dependencies = [
 dev = [
     "django-stubs[compatible-mypy]>=6.1.2",
     "djangorestframework-stubs>=3.18.1",
+    "hypothesis>=6.170.1",
     "mypy>=2.4.0",
     "pytest>=9.1.1",
     "pytest-cov>=7.1.0",
