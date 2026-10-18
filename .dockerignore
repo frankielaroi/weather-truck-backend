@@ -1,0 +1,16 @@
+.git
+.venv
+__pycache__
+*.pyc
+.env
+.env.*
+!.env.example
+staticfiles
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.coverage
+htmlcov
+docs
+**/tests
+deploy
